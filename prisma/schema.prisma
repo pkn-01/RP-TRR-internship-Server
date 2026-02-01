@@ -8,6 +8,222 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+model User {
+  id                Int                    @id @default(autoincrement())
+  name              String
+  email             String                 @unique
+  password          String
+  role              Role                   @default(USER)
+  department        String?
+  phoneNumber       String?
+  lineId            String?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  lineOALink        LineOALink?
+  loans             Loan[]
+  notifications     Notification[]
+  repairTickets     RepairTicket[]         @relation("RepairUserTickets")
+  repairAssignments RepairTicketAssignee[]
+  repairLogs        RepairTicketLog[]
+  assigned          Ticket[]               @relation("AssignedTickets")
+  tickets           Ticket[]               @relation("UserTickets")
+  logs              TicketLog[]
+}
+
+model Ticket {
+  id                 Int                @id @default(autoincrement())
+  ticketCode         String             @unique
+  title              String
+  description        String
+  problemCategory    ProblemCategory
+  problemSubcategory ProblemSubcategory
+  equipmentName      String
+  equipmentId        String?
+  location           String
+  category           String
+  priority           Priority
+  status             TicketStatus       @default(OPEN)
+  notes              String?
+  requiredDate       String?
+  guestName          String?
+  guestEmail         String?
+  guestPhone         String?
+  guestDepartment    String?
+  userId             Int?
+  assignedTo         Int?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  attachments        Attachment[]
+  assignee           User?              @relation("AssignedTickets", fields: [assignedTo], references: [id])
+  user               User?              @relation("UserTickets", fields: [userId], references: [id])
+  logs               TicketLog[]
+}
+
+model Attachment {
+  id        Int      @id @default(autoincrement())
+  ticketId  Int
+  filename  String
+  fileUrl   String
+  fileSize  Int
+  mimeType  String
+  createdAt DateTime @default(now())
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+}
+
+model TicketLog {
+  id        Int          @id @default(autoincrement())
+  ticketId  Int
+  status    TicketStatus
+  comment   String?
+  updatedBy Int
+  createdAt DateTime     @default(now())
+  ticket    Ticket       @relation(fields: [ticketId], references: [id])
+  user      User         @relation(fields: [updatedBy], references: [id])
+}
+
+model Notification {
+  id        Int                @id @default(autoincrement())
+  userId    Int
+  type      NotificationType
+  status    NotificationStatus @default(UNREAD)
+  title     String
+  message   String
+  ticketId  Int?
+  actionUrl String?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Loan {
+  id                 Int        @id @default(autoincrement())
+  itemName           String
+  description        String?
+  quantity           Int        @default(1)
+  borrowDate         DateTime   @default(now())
+  expectedReturnDate DateTime
+  returnDate         DateTime?
+  status             LoanStatus @default(BORROWED)
+  borrowerName       String?
+  borrowerDepartment String?
+  borrowerPhone      String?
+  borrowerLineId     String?
+  userId             Int
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  borrowedBy         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model LineOALink {
+  id                 Int            @id @default(autoincrement())
+  userId             Int            @unique
+  lineUserId         String?
+  displayName        String?
+  pictureUrl         String?
+  status             LineLinkStatus @default(PENDING)
+  verificationToken  String?
+  verificationExpiry DateTime?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  user               User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model LineNotification {
+  id           Int                    @id @default(autoincrement())
+  lineUserId   String
+  type         String
+  title        String
+  message      String
+  status       LineNotificationStatus @default(SENT)
+  retryCount   Int                    @default(0)
+  errorMessage String?
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+}
+
+model RepairTicket {
+  id                 Int                    @id @default(autoincrement())
+  ticketCode         String                 @unique
+  reporterName       String
+  reporterDepartment String?
+  reporterPhone      String?
+  reporterLineId     String?
+  problemCategory    ProblemCategory
+  problemTitle       String
+  problemDescription String?
+  location           String
+  status             RepairTicketStatus     @default(PENDING)
+  urgency            UrgencyLevel           @default(NORMAL)
+  userId             Int
+  notes              String?
+  scheduledAt        DateTime               @default(now())
+  completedAt        DateTime?
+  cancelledAt        DateTime?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  attachments        RepairAttachment[]
+  user               User                   @relation("RepairUserTickets", fields: [userId], references: [id], onDelete: Cascade)
+  assignees          RepairTicketAssignee[]
+  logs               RepairTicketLog[]
+}
+
+model RepairAttachment {
+  id             Int          @id @default(autoincrement())
+  repairTicketId Int
+  filename       String
+  fileUrl        String
+  fileSize       Int
+  mimeType       String
+  createdAt      DateTime     @default(now())
+  repairTicket   RepairTicket @relation(fields: [repairTicketId], references: [id], onDelete: Cascade)
+}
+
+model RepairTicketLog {
+  id             Int                @id @default(autoincrement())
+  repairTicketId Int
+  status         RepairTicketStatus
+  comment        String?
+  updatedBy      Int
+  createdAt      DateTime           @default(now())
+  repairTicket   RepairTicket       @relation(fields: [repairTicketId], references: [id], onDelete: Cascade)
+  user           User               @relation(fields: [updatedBy], references: [id])
+}
+
+model RepairTicketAssignee {
+  id             Int          @id @default(autoincrement())
+  repairTicketId Int
+  userId         Int
+  assignedAt     DateTime     @default(now())
+  repairTicket   RepairTicket @relation(fields: [repairTicketId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([repairTicketId, userId])
+}
+
+model Department {
+  id           Int      @id @default(autoincrement())
+  name         String
+  code         String   @unique
+  description  String?
+  location     String?
+  contactEmail String?
+  contactPhone String?
+  headName     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model StockItem {
+  id        Int      @id @default(autoincrement())
+  code      String   @unique
+  name      String
+  quantity  Int      @default(0)
+  category  String?
+  location  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 enum Role {
   USER
   IT
@@ -86,116 +302,6 @@ enum ProblemSubcategory {
   OTHER
 }
 
-model User {
-  id          Int     @id @default(autoincrement())
-  name        String
-  email       String  @unique
-  password    String
-  role        Role    @default(USER)
-  department  String?
-  phoneNumber String?
-  lineId      String?
-
-  tickets       Ticket[]       @relation("UserTickets")
-  assigned      Ticket[]       @relation("AssignedTickets")
-  logs          TicketLog[]
-  notifications Notification[]
-  loans         Loan[]
-  lineOALink    LineOALink?
-
-  repairTickets   RepairTicket[]    @relation("RepairUserTickets")
-  repairAssignments RepairTicketAssignee[]
-  repairLogs      RepairTicketLog[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model Ticket {
-  id          Int    @id @default(autoincrement())
-  ticketCode  String @unique
-  title       String
-  description String
-
-  // Problem classification
-  problemCategory    ProblemCategory
-  problemSubcategory ProblemSubcategory
-
-  // Equipment and location
-  equipmentName String
-  equipmentId   String?
-  location      String
-
-  category String
-  priority Priority
-  status   TicketStatus @default(OPEN)
-
-  // Repair-specific fields
-  notes        String? @db.Text
-  requiredDate String?
-
-  // Guest contact information (for tickets without user account)
-  guestName       String?
-  guestEmail      String?
-  guestPhone      String?
-  guestDepartment String?
-
-  // Attachments
-  attachments Attachment[]
-
-  userId     Int?
-  assignedTo Int?
-
-  user     User?       @relation("UserTickets", fields: [userId], references: [id], onDelete: SetNull)
-  assignee User?       @relation("AssignedTickets", fields: [assignedTo], references: [id])
-  logs     TicketLog[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model Attachment {
-  id       Int    @id @default(autoincrement())
-  ticketId Int
-  filename String
-  fileUrl  String
-  fileSize Int
-  mimeType String
-
-  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-}
-
-model TicketLog {
-  id        Int          @id @default(autoincrement())
-  ticketId  Int
-  status    TicketStatus
-  comment   String?
-  updatedBy Int
-
-  ticket Ticket @relation(fields: [ticketId], references: [id])
-  user   User   @relation(fields: [updatedBy], references: [id])
-
-  createdAt DateTime @default(now())
-}
-
-model Notification {
-  id        Int                @id @default(autoincrement())
-  userId    Int
-  type      NotificationType
-  status    NotificationStatus @default(UNREAD)
-  title     String
-  message   String
-  ticketId  Int?
-  actionUrl String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
 enum LoanStatus {
   BORROWED
   RETURNED
@@ -203,178 +309,14 @@ enum LoanStatus {
   LOST
 }
 
-model Loan {
-  id                 Int        @id @default(autoincrement())
-  itemName           String
-  description        String?
-  quantity           Int        @default(1)
-  borrowDate         DateTime   @default(now())
-  expectedReturnDate DateTime
-  returnDate         DateTime?
-  status             LoanStatus @default(BORROWED)
-
-  // Borrower contact information
-  borrowerName       String?
-  borrowerDepartment String?
-  borrowerPhone      String?
-  borrowerLineId     String?
-
-  userId     Int
-  borrowedBy User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-// LINE OA Integration Models
 enum LineLinkStatus {
   PENDING
   VERIFIED
   UNLINKED
 }
 
-model LineOALink {
-  id          Int            @id @default(autoincrement())
-  userId      Int            @unique
-  lineUserId  String?
-  displayName String?
-  pictureUrl  String?
-  status      LineLinkStatus @default(PENDING)
-
-  verificationToken  String?
-  verificationExpiry DateTime?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
 enum LineNotificationStatus {
   SENT
   FAILED
   READ
-}
-
-model LineNotification {
-  id         Int                    @id @default(autoincrement())
-  lineUserId String
-  type       String
-  title      String
-  message    String
-  status     LineNotificationStatus @default(SENT)
-
-  retryCount   Int     @default(0)
-  errorMessage String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-// ===================== Repair Ticket System =====================
-
-model RepairTicket {
-  id         Int    @id @default(autoincrement())
-  ticketCode String @unique
-
-  // Reporter Information
-  reporterName       String
-  reporterDepartment String?
-  reporterPhone      String?
-  reporterLineId     String?
-
-  // Problem Details
-  problemCategory    ProblemCategory
-  problemTitle       String
-  problemDescription String?         @db.Text
-  location           String
-
-  // Status & Priority
-  status  RepairTicketStatus @default(PENDING)
-  urgency UrgencyLevel       @default(NORMAL)
-
-  // Assignments
-  userId     Int
-  assignees  RepairTicketAssignee[]
-
-  // Additional Info
-  notes       String?   @db.Text
-  scheduledAt DateTime  @default(now())
-  completedAt DateTime?
-  cancelledAt DateTime?
-
-  // Attachments
-  attachments RepairAttachment[]
-  logs        RepairTicketLog[]
-
-  // Relations
-  user     User  @relation("RepairUserTickets", fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model RepairAttachment {
-  id             Int    @id @default(autoincrement())
-  repairTicketId Int
-  filename       String
-  fileUrl        String
-  fileSize       Int
-  mimeType       String
-
-  repairTicket RepairTicket @relation(fields: [repairTicketId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-}
-
-
-model RepairTicketLog {
-  id             Int                @id @default(autoincrement())
-  repairTicketId Int
-  status         RepairTicketStatus
-  comment        String?
-  updatedBy      Int
-
-  repairTicket RepairTicket @relation(fields: [repairTicketId], references: [id], onDelete: Cascade)
-  user         User         @relation(fields: [updatedBy], references: [id])
-
-  createdAt DateTime @default(now())
-}
-
-model RepairTicketAssignee {
-  id             Int      @id @default(autoincrement())
-  repairTicketId Int
-  userId         Int
-  assignedAt     DateTime @default(now())
-
-  repairTicket RepairTicket @relation(fields: [repairTicketId], references: [id], onDelete: Cascade)
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([repairTicketId, userId])
-}
-
-
-model Department {
-  id           Int      @id @default(autoincrement())
-  name         String
-  code         String   @unique
-  description  String?
-  location     String?
-  contactEmail String?
-  contactPhone String?
-  headName     String?
-
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-}
-
-model StockItem {
-  id          Int      @id @default(autoincrement())
-  code        String   @unique
-  name        String
-  quantity    Int      @default(0)
-  category    String?
-  location    String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
 }
