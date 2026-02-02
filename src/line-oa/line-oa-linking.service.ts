@@ -74,6 +74,7 @@ export class LineOALinkingService {
     userId: number,
     lineUserId: string,
     verificationToken: string,
+    force: boolean = false,
   ) {
     // ตรวจสอบ linking record
     const linkingRecord = await this.prisma.lineOALink.findFirst({
@@ -101,7 +102,15 @@ export class LineOALinkingService {
     });
 
     if (existingLink && existingLink.userId !== userId) {
-      throw new BadRequestException('This LINE account is already linked');
+      if (!force) {
+        throw new BadRequestException('This LINE account is already linked');
+      }
+      
+      // Force Link: ลบการเชื่อมต่อเก่า
+      this.logger.log(`Force linking: Removing link from user ${existingLink.userId}`);
+      await this.prisma.lineOALink.delete({
+        where: { userId: existingLink.userId },
+      });
     }
 
     // อัปเดต linking record

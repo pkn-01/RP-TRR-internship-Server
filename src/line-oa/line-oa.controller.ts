@@ -40,11 +40,13 @@ export class LineOAController {
     @Body('userId') userId: number = 1,
     @Body('lineUserId') lineUserId: string,
     @Body('verificationToken') verificationToken: string,
+    @Body('force') force: boolean = false,
   ) {
     return await this.linkingService.verifyLink(
       userId || 1,
       lineUserId,
       verificationToken,
+      force,
     );
   }
 
