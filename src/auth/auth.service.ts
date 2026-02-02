@@ -224,12 +224,20 @@ export class AuthService {
 
     return user;
   }
-  /**
+    /**
    * Get LINE User ID from Authorization Code
    * Used for Account Linking process
    */
   async getLineUserIdFromCode(code: string): Promise<string> {
     const tokenResponse = await this.lineOAuth.exchangeCodeForToken(code);
+    
+    // LINE token endpoint doesn't always return user_id
+    // We need to fetch the profile using the access token
+    if (!tokenResponse.user_id) {
+      const profile = await this.lineOAuth.getUserProfile(tokenResponse.access_token);
+      return profile.userId;
+    }
+    
     return tokenResponse.user_id;
   }
 }
