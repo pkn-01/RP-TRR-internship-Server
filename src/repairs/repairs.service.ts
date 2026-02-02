@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException, Logger } from '@nes
 import { PrismaService } from '../prisma/prisma.service';
 import { RepairTicketStatus, UrgencyLevel } from '@prisma/client';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import { LineOANotificationService } from '../line-oa/line-oa-notification.service';
 import * as path from 'path';
 
 // Security: Allowed file types and size limits
@@ -15,6 +16,7 @@ export class RepairsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cloudinaryService: CloudinaryService,
+    private readonly lineNotificationService: LineOANotificationService,
   ) {}
 
   /**
@@ -91,6 +93,25 @@ export class RepairsService {
         },
       },
     });
+
+    // 🔔 Notify IT team via LINE when new ticket is created
+    try {
+      await this.lineNotificationService.notifyRepairTicketToITTeam({
+        ticketCode: ticket.ticketCode,
+        reporterName: dto.reporterName,
+        department: dto.reporterDepartment || 'ไม่ระบุแผนก',
+        problemTitle: dto.problemTitle,
+        problemDescription: dto.problemDescription,
+        location: dto.location,
+        urgency: dto.urgency || 'NORMAL',
+        createdAt: new Date().toISOString(),
+      });
+      this.logger.log(`LINE notification sent for new ticket: ${ticket.ticketCode}`);
+    } catch (error) {
+      // Don't fail the ticket creation if notification fails
+      this.logger.error('Failed to send LINE notification:', error);
+    }
+
     return ticket;
   }
 
@@ -123,6 +144,12 @@ export class RepairsService {
   }
 
   async update(id: number, dto: any, updatedById: number) {
+    // Get original ticket to compare for notifications
+    const originalTicket = await this.prisma.repairTicket.findUnique({
+      where: { id },
+      include: { assignees: { select: { userId: true } } },
+    });
+
     // Build update data with only valid fields
     const updateData: any = {};
 
@@ -138,6 +165,9 @@ export class RepairsService {
     if (dto.urgency !== undefined) updateData.urgency = dto.urgency;
 
     try {
+      // Track new assignees for notifications
+      const previousAssigneeIds = originalTicket?.assignees.map(a => a.userId) || [];
+      
       // Handle multi-assignee sync
       if (dto.assigneeIds !== undefined) {
         // Delete all existing assignees and recreate
@@ -163,6 +193,44 @@ export class RepairsService {
           assignees: { include: { user: true } },
         },
       });
+
+      // 🔔 LINE Notifications
+      try {
+        // Notify new assignees
+        if (dto.assigneeIds !== undefined) {
+          const newAssigneeIds = dto.assigneeIds.filter((id: number) => !previousAssigneeIds.includes(id));
+          
+          for (const techId of newAssigneeIds) {
+            await this.lineNotificationService.notifyTechnicianTaskAssignment(techId, {
+              ticketCode: ticket.ticketCode,
+              problemTitle: ticket.problemTitle,
+              reporterName: ticket.reporterName,
+              urgency: ticket.urgency as 'CRITICAL' | 'URGENT' | 'NORMAL',
+              action: 'ASSIGNED',
+            });
+            this.logger.log(`Notified technician ${techId} for assignment: ${ticket.ticketCode}`);
+          }
+        }
+
+        // Notify reporter on status change
+        if (dto.status !== undefined && originalTicket && dto.status !== originalTicket.status) {
+          const technicianNames = ticket.assignees.map(a => a.user.name);
+          
+          await this.lineNotificationService.notifyRepairTicketStatusUpdate(ticket.userId, {
+            ticketCode: ticket.ticketCode,
+            problemTitle: ticket.problemTitle,
+            status: dto.status,
+            remark: dto.notes,
+            technicianNames,
+            updatedAt: new Date(),
+          });
+          this.logger.log(`Notified reporter for status change: ${ticket.ticketCode} -> ${dto.status}`);
+        }
+      } catch (notifError) {
+        // Don't fail the update if notification fails
+        this.logger.error('Failed to send LINE notification:', notifError);
+      }
+
       return ticket;
     } catch (error: any) {
       // Handle "Record not found" error
