@@ -60,4 +60,10 @@ export class AuthController {
   ) {
     return this.authService.updateProfile(req.user.id, data);
   }
+  @Post('verify-line-code')
+  @Public()
+  async verifyLineCode(@Body() body: { code: string }) {
+    const lineUserId = await this.authService.getLineUserIdFromCode(body.code);
+    return { lineUserId };
+  }
 }

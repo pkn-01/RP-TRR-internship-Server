@@ -224,4 +224,12 @@ export class AuthService {
 
     return user;
   }
+  /**
+   * Get LINE User ID from Authorization Code
+   * Used for Account Linking process
+   */
+  async getLineUserIdFromCode(code: string): Promise<string> {
+    const tokenResponse = await this.lineOAuth.exchangeCodeForToken(code);
+    return tokenResponse.user_id;
+  }
 }
