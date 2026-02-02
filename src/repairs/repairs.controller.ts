@@ -55,18 +55,51 @@ export class RepairsController {
     @UploadedFiles() files?: Express.Multer.File[],
   ) {
     try {
+      // Validate required fields
+      if (!body.reporterDepartment) {
+        throw new HttpException(
+          'กรุณาระบุแผนก/ฝ่ายงาน',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      if (!body.problemTitle) {
+        throw new HttpException(
+          'กรุณาระบุปัญหาที่พบ',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      if (!body.location) {
+        throw new HttpException(
+          'กรุณาระบุสถานที่',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
       const dto = new CreateRepairTicketDto();
 
       dto.reporterName = body.reporterName || 'ไม่ได้ระบุ';
       dto.reporterDepartment = body.reporterDepartment;
       dto.reporterPhone = body.reporterPhone;
-      dto.location = body.location || 'ไม่ได้ระบุ';
-      dto.problemTitle = body.problemTitle || 'ไม่มีหัวข้อ';
+      dto.location = body.location;
+      dto.problemTitle = body.problemTitle;
 
-      dto.reporterLineId =
-        body.reporterLineId && body.reporterLineId !== 'null'
-          ? body.reporterLineId
-          : 'Guest';
+      // Validate LINE User ID format
+      const lineUserId = body.reporterLineId;
+      if (!lineUserId || lineUserId === 'null' || lineUserId === 'undefined') {
+        dto.reporterLineId = 'Guest';
+      } else {
+        // LINE User ID format: U + 32 hex characters
+        const lineIdPattern = /^U[0-9a-f]{32}$/i;
+        if (!lineIdPattern.test(lineUserId)) {
+          this.logger.warn(`Invalid LINE User ID format: ${lineUserId}`);
+          // Allow it but log warning - might be test/dev environment
+          dto.reporterLineId = lineUserId;
+        } else {
+          dto.reporterLineId = lineUserId;
+        }
+      }
 
       dto.problemCategory = Object.values(ProblemCategory).includes(
         body.problemCategory,
@@ -110,8 +143,14 @@ export class RepairsController {
       return ticket;
     } catch (error: any) {
       this.logger.error(error.message, error.stack);
+      
+      // Return specific error messages
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      
       throw new HttpException(
-        'สร้างรายการแจ้งซ่อมไม่สำเร็จ',
+        'สร้างรายการแจ้งซ่อมไม่สำเร็จ กรุณาลองใหม่อีกครั้ง',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
