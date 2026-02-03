@@ -5,6 +5,7 @@ import * as bcrypt from 'bcrypt';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { LineOAuthService } from './line-oauth.service';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 @Injectable()
 export class AuthService {
@@ -12,6 +13,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private lineOAuth: LineOAuthService,
+    private cloudinary: CloudinaryService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -185,6 +187,7 @@ export class AuthService {
           department: true,
           phoneNumber: true,
           lineId: true,
+          profilePicture: true,
           createdAt: true,
         },
       });
@@ -218,13 +221,61 @@ export class AuthService {
         department: true,
         phoneNumber: true,
         lineId: true,
+        profilePicture: true,
         createdAt: true,
       },
     });
 
     return user;
   }
-    /**
+
+  async uploadProfilePicture(userId: number, file: Express.Multer.File) {
+    // Get current user to check for existing profile picture
+    const currentUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { profilePictureId: true },
+    });
+
+    // Delete old profile picture from Cloudinary if exists
+    if (currentUser?.profilePictureId) {
+      try {
+        await this.cloudinary.deleteFile(currentUser.profilePictureId);
+      } catch (error) {
+        console.error('Error deleting old profile picture:', error);
+      }
+    }
+
+    // Upload new profile picture
+    const uploadResult = await this.cloudinary.uploadFile(
+      file.buffer,
+      file.originalname,
+      'profile-pictures',
+    );
+
+    // Update user with new profile picture
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        profilePicture: uploadResult.url,
+        profilePictureId: uploadResult.publicId,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        department: true,
+        phoneNumber: true,
+        lineId: true,
+        profilePicture: true,
+        createdAt: true,
+      },
+    });
+
+    return user;
+  }
+
+  /**
    * Get LINE User ID from Authorization Code
    * Used for Account Linking process
    */
@@ -241,3 +292,4 @@ export class AuthService {
     return tokenResponse.user_id;
   }
 }
+

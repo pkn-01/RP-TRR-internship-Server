@@ -1,4 +1,5 @@
-import { Controller, Post, Body, Get, Patch, Request, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Body, Get, Patch, Request, BadRequestException, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -60,6 +61,19 @@ export class AuthController {
   ) {
     return this.authService.updateProfile(req.user.id, data);
   }
+
+  @Post('profile/picture')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadProfilePicture(
+    @Request() req,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+    return this.authService.uploadProfilePicture(req.user.id, file);
+  }
+
   @Post('verify-line-code')
   @Public()
   async verifyLineCode(@Body() body: { code: string }) {
@@ -67,3 +81,4 @@ export class AuthController {
     return { lineUserId };
   }
 }
+

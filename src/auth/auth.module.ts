@@ -6,10 +6,12 @@ import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from './jwt.strategy';
 import { JwtAuthGuard } from './jwt.guard';
 import { PrismaModule } from '../prisma/prisma.module';
+import { CloudinaryModule } from '../cloudinary/cloudinary.module';
 
 @Module({
   imports: [
     PrismaModule,
+    CloudinaryModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET,
       signOptions: { expiresIn: '1d' },
@@ -20,3 +22,4 @@ import { PrismaModule } from '../prisma/prisma.module';
   exports: [JwtAuthGuard],
 })
 export class AuthModule {}
+
