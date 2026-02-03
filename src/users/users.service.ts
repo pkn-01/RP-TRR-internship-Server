@@ -33,6 +33,7 @@ export class UsersService {
               pictureUrl: true,
             }
           },
+          profilePicture: true,
           createdAt: true,
           updatedAt: true,
           _count: {
@@ -91,7 +92,8 @@ export class UsersService {
             displayName: true,
             pictureUrl: true
           }
-        }
+        },
+        profilePicture: true,
       },
       orderBy: {
         name: 'asc'
@@ -123,6 +125,7 @@ export class UsersService {
                 pictureUrl: true,
             }
         },
+        profilePicture: true,
         createdAt: true,
         updatedAt: true,
         _count: {
@@ -187,6 +190,7 @@ export class UsersService {
                 pictureUrl: true,
             }
         },
+        profilePicture: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -251,6 +255,7 @@ export class UsersService {
                 pictureUrl: true,
             }
         },
+        profilePicture: true,
         createdAt: true,
         updatedAt: true,
       },
