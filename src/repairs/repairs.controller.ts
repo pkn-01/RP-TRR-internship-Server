@@ -247,25 +247,13 @@ export class RepairsController {
     @Req() req: any,
   ) {
     try {
+      // LINE notification is already handled in repairsService.update()
+      // Do NOT send notification here to avoid duplicate notifications
       const updated = await this.repairsService.update(
         id,
         dto,
         req.user.id,
       );
-
-      if (dto.status && updated?.userId) {
-        const technicianNames = (updated as any).assignees?.map((a: any) => a.user.name) || [];
-        this.lineNotificationService
-          .notifyRepairTicketStatusUpdate(updated.userId, {
-            ticketCode: updated.ticketCode,
-            problemTitle: updated.problemTitle,
-            status: dto.status,
-            remark: dto.notes,
-            updatedAt: new Date(),
-            technicianNames: technicianNames,
-          })
-          .catch(() => this.logger.warn('User notify failed'));
-      }
 
       return updated;
     } catch (error: any) {
