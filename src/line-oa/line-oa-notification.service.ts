@@ -539,6 +539,7 @@ export class LineOANotificationService {
   private getStatusConfig(status: string) {
     return ({
       PENDING: { color: COLORS.WARNING, text: 'รอดำเนินการ' },
+      ASSIGNED: { color: COLORS.INFO, text: 'มอบหมายแล้ว' },
       IN_PROGRESS: { color: COLORS.INFO, text: 'กำลังดำเนินการ' },
       COMPLETED: { color: COLORS.SUCCESS, text: 'เสร็จสิ้น' },
       WAITING_USER: { color: COLORS.WARNING, text: 'รอข้อมูลจากผู้แจ้ง' },

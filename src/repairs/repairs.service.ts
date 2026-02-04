@@ -274,17 +274,20 @@ export class RepairsService {
 
         // Notify reporter on status change
         if (dto.status !== undefined && originalTicket && dto.status !== originalTicket.status) {
-          const technicianNames = ticket.assignees.map(a => a.user.name);
-          
-          await this.lineNotificationService.notifyRepairTicketStatusUpdate(ticket.userId, {
-            ticketCode: ticket.ticketCode,
-            problemTitle: ticket.problemTitle,
-            status: dto.status,
-            remark: dto.notes,
-            technicianNames,
-            updatedAt: new Date(),
-          });
-          this.logger.log(`Notified reporter for status change: ${ticket.ticketCode} -> ${dto.status}`);
+          // Skip notification to reporter if status is ASSIGNED (only notify IT team)
+          if (dto.status !== 'ASSIGNED') {
+            const technicianNames = ticket.assignees.map(a => a.user.name);
+            
+            await this.lineNotificationService.notifyRepairTicketStatusUpdate(ticket.userId, {
+              ticketCode: ticket.ticketCode,
+              problemTitle: ticket.problemTitle,
+              status: dto.status,
+              remark: dto.notes,
+              technicianNames,
+              updatedAt: new Date(),
+            });
+            this.logger.log(`Notified reporter for status change: ${ticket.ticketCode} -> ${dto.status}`);
+          }
         }
       } catch (notifError) {
         // Don't fail the update if notification fails
