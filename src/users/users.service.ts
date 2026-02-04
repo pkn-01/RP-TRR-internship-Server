@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 
@@ -271,27 +271,34 @@ export class UsersService {
   async createUser(data: any) {
     const hashedPassword = await bcrypt.hash(data.password, 10);
 
-    return this.prisma.user.create({
-      data: {
-        name: data.name,
-        email: data.email,
-        password: hashedPassword,
-        role: data.role || 'USER',
-        department: data.department || '',
-        phoneNumber: data.phoneNumber || '',
-        lineId: data.lineId || '',
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        department: true,
-        phoneNumber: true,
-        lineId: true,
-        createdAt: true,
-      },
-    });
+    try {
+      return await this.prisma.user.create({
+        data: {
+          name: data.name,
+          email: data.email,
+          password: hashedPassword,
+          role: data.role || 'ผู้ใช้ทั่วไป',
+          department: data.department || '',
+          phoneNumber: data.phoneNumber || '',
+          lineId: data.lineId || '',
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          department: true,
+          phoneNumber: true,
+          lineId: true,
+          createdAt: true,
+        },
+      });
+    } catch (error: any) {
+      if (error.code === 'P2002' && error.meta?.target?.includes('email')) {
+        throw new ConflictException('Email already exists');
+      }
+      throw error;
+    }
   }
 
   async changePassword(id: number, newPassword: string) {
