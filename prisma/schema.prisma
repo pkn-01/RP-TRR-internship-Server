@@ -30,6 +30,8 @@ model User {
   assigned          Ticket[]               @relation("AssignedTickets")
   tickets           Ticket[]               @relation("UserTickets")
   logs              TicketLog[]
+  assignedHistory   RepairAssignmentHistory[] @relation("Assigner")
+  receivedHistory   RepairAssignmentHistory[] @relation("Assignee")
 }
 
 
@@ -168,6 +170,7 @@ model RepairTicket {
   user               User                   @relation("RepairUserTickets", fields: [userId], references: [id], onDelete: Cascade)
   assignees          RepairTicketAssignee[]
   logs               RepairTicketLog[]
+  assignmentHistory  RepairAssignmentHistory[]
 }
 
 model RepairAttachment {
@@ -262,10 +265,24 @@ enum Priority {
 
 enum RepairTicketStatus {
   PENDING
+  ASSIGNED
   IN_PROGRESS
   WAITING_PARTS
   COMPLETED
   CANCELLED
+}
+
+model RepairAssignmentHistory {
+  id             Int          @id @default(autoincrement())
+  repairTicketId Int
+  repairTicket   RepairTicket @relation(fields: [repairTicketId], references: [id], onDelete: Cascade)
+  action         String
+  assignerId     Int?
+  assigner       User?        @relation("Assigner", fields: [assignerId], references: [id])
+  assigneeId     Int?
+  assignee       User?        @relation("Assignee", fields: [assigneeId], references: [id])
+  note           String?
+  createdAt      DateTime     @default(now())
 }
 
 enum UrgencyLevel {

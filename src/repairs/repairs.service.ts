@@ -123,6 +123,13 @@ export class RepairsService {
         assignees: { include: { user: true } },
         attachments: true,
         logs: { include: { user: true }, orderBy: { createdAt: 'desc' } },
+        assignmentHistory: {
+          include: { 
+            assigner: true,
+            assignee: true
+          },
+          orderBy: { createdAt: 'desc' }
+        }
       },
     });
     if (!ticket) throw new NotFoundException(`Repair ticket #${id} not found`);
@@ -165,7 +172,7 @@ export class RepairsService {
     if (dto.urgency !== undefined) updateData.urgency = dto.urgency;
 
     try {
-      // Track new assignees for notifications
+      // Track new assignees for notifications and history
       const previousAssigneeIds = originalTicket?.assignees.map(a => a.userId) || [];
       
       // Handle multi-assignee sync
@@ -182,7 +189,60 @@ export class RepairsService {
               userId,
             })),
           });
+
+          // 📜 LOG ASSIGNMENT HISTORY
+          const addedIds = dto.assigneeIds.filter((id: number) => !previousAssigneeIds.includes(id));
+          const removedIds = previousAssigneeIds.filter((id: number) => !dto.assigneeIds.includes(id));
+
+          const historyData: any[] = [];
+           // Log Assignments
+          for (const uid of addedIds) {
+              historyData.push({
+                  repairTicketId: id,
+                  action: 'ASSIGN',
+                  assignerId: updatedById,
+                  assigneeId: uid,
+                  note: 'มอบหมายงาน'
+              });
+          }
+          // Log Unassignments
+          for (const uid of removedIds) {
+               historyData.push({
+                  repairTicketId: id,
+                  action: 'UNASSIGN',
+                  assignerId: updatedById,
+                  assigneeId: uid,
+                  note: 'ยกเลิกการมอบหมาย'
+              });
+          }
+          if (historyData.length > 0) {
+              await this.prisma.repairAssignmentHistory.createMany({ data: historyData });
+          }
         }
+      }
+
+      // Log Status Changes (Accept/Reject)
+      if (dto.status !== undefined && originalTicket && dto.status !== originalTicket.status) {
+         let action = 'STATUS_CHANGE';
+         let note = `เปลี่ยนสถานะจาก ${originalTicket.status} เป็น ${dto.status}`;
+         
+         if (dto.status === 'IN_PROGRESS' && originalTicket.status === 'ASSIGNED') {
+             action = 'ACCEPT';
+             note = 'รับงาน';
+         } else if (dto.status === 'PENDING' && originalTicket.status === 'ASSIGNED') {
+             action = 'REJECT';
+             note = 'ปฏิเสธงาน'; // Or get from dto.note if available?
+         }
+
+          await this.prisma.repairAssignmentHistory.create({
+             data: {
+                 repairTicketId: id,
+                 action,
+                 assignerId: updatedById,
+                 assigneeId: updatedById, // Self-action
+                 note
+             }
+          });
       }
 
       const ticket = await this.prisma.repairTicket.update({
@@ -194,7 +254,7 @@ export class RepairsService {
         },
       });
 
-      // 🔔 LINE Notifications
+      // LINE Notifications
       try {
         // Notify new assignees
         if (dto.assigneeIds !== undefined) {
@@ -313,7 +373,7 @@ export class RepairsService {
 
     const where: any = {};
 
-    // 🔐 USER เห็นเฉพาะของตัวเอง
+    // USER เห็นเฉพาะของตัวเอง
     if (!isAdmin && userId) {
       where.userId = userId;
     }
