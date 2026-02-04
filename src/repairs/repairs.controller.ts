@@ -86,28 +86,8 @@ export class RepairsController {
         body.pictureUrl,
       );
 
-      const ticket = await this.repairsService.create(
-        user.id,
-        dto,
-        files,
-      );
-
-      // Notify IT (fire & forget)
-      if (ticket) {
-        this.lineNotificationService
-          .notifyRepairTicketToITTeam({
-            ticketCode: ticket.ticketCode,
-            reporterName: ticket.reporterName,
-            department: ticket.reporterDepartment || 'ไม่ระบุ',
-            problemTitle: ticket.problemTitle,
-            location: ticket.location,
-            urgency: ticket.urgency,
-            createdAt: new Date().toLocaleString('th-TH'),
-          })
-          .catch(() => this.logger.warn('IT notify failed'));
-      }
-
-      return ticket;
+      // Create ticket - notification is handled inside repairsService.create()
+      return await this.repairsService.create(user.id, dto, files);
     } catch (error: any) {
       this.logger.error(error.message, error.stack);
       throw new HttpException(
