@@ -224,7 +224,19 @@ export class RepairsService {
       // Log Status Changes (Accept/Reject)
       if (dto.status !== undefined && originalTicket && dto.status !== originalTicket.status) {
          let action = 'STATUS_CHANGE';
-         let note = `เปลี่ยนสถานะจาก ${originalTicket.status} เป็น ${dto.status}`;
+         
+         const statusTh: Record<string, string> = {
+           PENDING: 'รอรับงาน',
+           ASSIGNED: 'มอบหมายแล้ว',
+           IN_PROGRESS: 'กำลังดำเนินการ',
+           WAITING_PARTS: 'รออะไหล่',
+           COMPLETED: 'เสร็จสิ้น',
+           CANCELLED: 'ยกเลิก'
+         };
+
+         const oldStatus = statusTh[originalTicket.status] || originalTicket.status;
+         const newStatus = statusTh[dto.status] || dto.status;
+         let note = `เปลี่ยนสถานะจาก ${oldStatus} เป็น ${newStatus}`;
          
          if (dto.status === 'IN_PROGRESS' && originalTicket.status === 'ASSIGNED') {
              action = 'ACCEPT';
