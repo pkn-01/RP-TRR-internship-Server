@@ -13,11 +13,29 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 export class RepairsService {
   private readonly logger = new Logger(RepairsService.name);
 
+  // Valid status transitions
+  private readonly statusTransitions: Record<RepairTicketStatus, RepairTicketStatus[]> = {
+    [RepairTicketStatus.PENDING]: [RepairTicketStatus.ASSIGNED, RepairTicketStatus.CANCELLED],
+    [RepairTicketStatus.ASSIGNED]: [RepairTicketStatus.PENDING, RepairTicketStatus.IN_PROGRESS, RepairTicketStatus.CANCELLED],
+    [RepairTicketStatus.IN_PROGRESS]: [RepairTicketStatus.WAITING_PARTS, RepairTicketStatus.COMPLETED, RepairTicketStatus.CANCELLED],
+    [RepairTicketStatus.WAITING_PARTS]: [RepairTicketStatus.IN_PROGRESS, RepairTicketStatus.COMPLETED, RepairTicketStatus.CANCELLED],
+    [RepairTicketStatus.COMPLETED]: [],
+    [RepairTicketStatus.CANCELLED]: [],
+  };
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly cloudinaryService: CloudinaryService,
     private readonly lineNotificationService: LineOANotificationService,
   ) {}
+
+  /**
+   * Validate if a status transition is allowed
+   */
+  private validateStatusTransition(from: RepairTicketStatus, to: RepairTicketStatus): boolean {
+    if (from === to) return true; // Same status is always valid
+    return this.statusTransitions[from]?.includes(to) || false;
+  }
 
   /**
    * Sanitize filename to prevent path traversal attacks
@@ -156,6 +174,15 @@ export class RepairsService {
       where: { id },
       include: { assignees: { select: { userId: true } } },
     });
+
+    // Validate status transition
+    if (dto.status !== undefined && originalTicket && dto.status !== originalTicket.status) {
+      if (!this.validateStatusTransition(originalTicket.status, dto.status)) {
+        throw new BadRequestException(
+          `ไม่สามารถเปลี่ยนสถานะจาก ${originalTicket.status} เป็น ${dto.status} ได้`
+        );
+      }
+    }
 
     // Build update data with only valid fields
     const updateData: any = {};
@@ -343,6 +370,7 @@ export class RepairsService {
     return {
       total,
       pending: getCount(RepairTicketStatus.PENDING),
+      assigned: getCount(RepairTicketStatus.ASSIGNED),
       inProgress: getCount(RepairTicketStatus.IN_PROGRESS),
       waitingParts: getCount(RepairTicketStatus.WAITING_PARTS),
       completed: getCount(RepairTicketStatus.COMPLETED),
