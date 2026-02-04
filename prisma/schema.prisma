@@ -34,7 +34,7 @@ model User {
   receivedHistory   RepairAssignmentHistory[] @relation("Assignee")
 }
 
-
+// Ticket
 model Ticket {
   id                 Int                @id @default(autoincrement())
   ticketCode         String             @unique
@@ -63,7 +63,7 @@ model Ticket {
   user               User?              @relation("UserTickets", fields: [userId], references: [id])
   logs               TicketLog[]
 }
-
+// Attachment
 model Attachment {
   id        Int      @id @default(autoincrement())
   ticketId  Int

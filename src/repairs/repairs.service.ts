@@ -190,7 +190,7 @@ export class RepairsService {
             })),
           });
 
-          // 📜 LOG ASSIGNMENT HISTORY
+          //LOG ASSIGNMENT HISTORY
           const addedIds = dto.assigneeIds.filter((id: number) => !previousAssigneeIds.includes(id));
           const removedIds = previousAssigneeIds.filter((id: number) => !dto.assigneeIds.includes(id));
 
