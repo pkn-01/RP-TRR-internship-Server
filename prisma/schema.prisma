@@ -147,31 +147,34 @@ model LineNotification {
 }
 
 model RepairTicket {
-  id                 Int                    @id @default(autoincrement())
-  ticketCode         String                 @unique
-  reporterName       String
-  reporterDepartment String?
-  reporterPhone      String?
-  reporterLineId     String?
-  problemCategory    ProblemCategory
-  problemTitle       String
-  problemDescription String?
-  location           String
-  status             RepairTicketStatus     @default(PENDING)
-  urgency            UrgencyLevel           @default(NORMAL)
-  userId             Int
-  notes              String?
-  scheduledAt        DateTime               @default(now())
-  completedAt        DateTime?
-  cancelledAt        DateTime?
-  createdAt          DateTime               @default(now())
-  updatedAt          DateTime               @updatedAt
-  attachments        RepairAttachment[]
-  user               User                   @relation("RepairUserTickets", fields: [userId], references: [id], onDelete: Cascade)
-  assignees          RepairTicketAssignee[]
-  logs               RepairTicketLog[]
-  assignmentHistory  RepairAssignmentHistory[]
+  id                      Int                    @id @default(autoincrement())
+  ticketCode              String                 @unique
+  reporterName            String
+  reporterDepartment      String?
+  reporterPhone           String?
+  reporterLineId          String?
+  problemCategory         ProblemCategory
+  problemTitle            String
+  problemDescription      String?
+  location                String
+  status                  RepairTicketStatus     @default(PENDING)
+  urgency                 UrgencyLevel           @default(NORMAL)
+  userId                  Int
+  notes                   String?
+  messageToReporter       String?                // ข้อความถึงผู้แจ้ง (แยกจาก notes ภายใน)
+  estimatedCompletionDate DateTime?              // เวลาโดยประมาณที่จะเสร็จ
+  scheduledAt             DateTime               @default(now())
+  completedAt             DateTime?
+  cancelledAt             DateTime?
+  createdAt               DateTime               @default(now())
+  updatedAt               DateTime               @updatedAt
+  attachments             RepairAttachment[]
+  user                    User                   @relation("RepairUserTickets", fields: [userId], references: [id], onDelete: Cascade)
+  assignees               RepairTicketAssignee[]
+  logs                    RepairTicketLog[]
+  assignmentHistory       RepairAssignmentHistory[]
 }
+
 
 model RepairAttachment {
   id             Int          @id @default(autoincrement())

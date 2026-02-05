@@ -189,9 +189,11 @@ export class RepairsService {
 
     if (dto.status !== undefined) updateData.status = dto.status;
     if (dto.notes !== undefined) updateData.notes = dto.notes;
+    if (dto.messageToReporter !== undefined) updateData.messageToReporter = dto.messageToReporter;
     // Dates need careful handling
     if (dto.scheduledAt) updateData.scheduledAt = new Date(dto.scheduledAt);
     if (dto.completedAt) updateData.completedAt = new Date(dto.completedAt);
+    if (dto.estimatedCompletionDate) updateData.estimatedCompletionDate = new Date(dto.estimatedCompletionDate);
     
     if (dto.problemTitle !== undefined) updateData.problemTitle = dto.problemTitle;
     if (dto.problemDescription !== undefined) updateData.problemDescription = dto.problemDescription;
@@ -311,22 +313,22 @@ export class RepairsService {
           }
         }
 
-        // Notify reporter on status change
+        // Notify reporter on status change (including ASSIGNED status)
         if (dto.status !== undefined && originalTicket && dto.status !== originalTicket.status) {
-          // Skip notification to reporter if status is ASSIGNED (only notify IT team)
-          if (dto.status !== 'ASSIGNED') {
-            const technicianNames = ticket.assignees.map(a => a.user.name);
-            
-            await this.lineNotificationService.notifyRepairTicketStatusUpdate(ticket.userId, {
-              ticketCode: ticket.ticketCode,
-              problemTitle: ticket.problemTitle,
-              status: dto.status,
-              remark: dto.notes,
-              technicianNames,
-              updatedAt: new Date(),
-            });
-            this.logger.log(`Notified reporter for status change: ${ticket.ticketCode} -> ${dto.status}`);
-          }
+          const technicianNames = ticket.assignees.map(a => a.user.name);
+          
+          // Use messageToReporter if available, otherwise fall back to notes
+          const remarkMessage = dto.messageToReporter || dto.notes;
+          
+          await this.lineNotificationService.notifyRepairTicketStatusUpdate(ticket.userId, {
+            ticketCode: ticket.ticketCode,
+            problemTitle: ticket.problemTitle,
+            status: dto.status,
+            remark: remarkMessage,
+            technicianNames,
+            updatedAt: new Date(),
+          });
+          this.logger.log(`Notified reporter for status change: ${ticket.ticketCode} -> ${dto.status}`);
         }
       } catch (notifError) {
         // Don't fail the update if notification fails
