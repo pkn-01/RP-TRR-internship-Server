@@ -313,8 +313,8 @@ export class RepairsService {
           }
         }
 
-        // Notify reporter on status change (including ASSIGNED status)
-        if (dto.status !== undefined && originalTicket && dto.status !== originalTicket.status) {
+        // Notify reporter on status change (excluding ASSIGNED status as requested)
+        if (dto.status !== undefined && dto.status !== 'ASSIGNED' && originalTicket && dto.status !== originalTicket.status) {
           const technicianNames = ticket.assignees.map(a => a.user.name);
           
           // Use messageToReporter if available, otherwise fall back to notes
